@@ -91,12 +91,14 @@ def main() -> None:
         "ROBOTWIN_PATH": str(robotwin),
         "PYTHONPATH": os.pathsep.join((str(openwam), str(openwam / "benchmarks/robotwin"), base_env.get("PYTHONPATH", ""))),
         "PYTHONUNBUFFERED": "1",
+        "ROBOTWIN_DISABLE_EVAL_VIDEO": "1",
     })
 
     for task in tasks:
         path = manifest_root / task / config["mode"] / "manifest.json"
         if path.is_file() and len(load(path).get("entries", [])) >= states:
             continue
+        path.parent.mkdir(parents=True, exist_ok=True)
         env = base_env | {"CUDA_VISIBLE_DEVICES": str(sim_gpu),
                           "ROBOTWIN_RUNTIME_ROOT": str(manifest_root / task / config["mode"] / "runtime")}
         run([robotwin_python, str(wrapper), "labtasker", "--operation", "build_manifest",
@@ -132,6 +134,7 @@ def main() -> None:
                             completed += 1
                             continue
                         runtime = output / "runtime" / task / method / f"s{state:02d}_r{rollout:03d}"
+                        runtime.mkdir(parents=True, exist_ok=True)
                         sample_seed = policy_sample_seed(method, task, state, rollout)
                         env = base_env | {
                             "CUDA_VISIBLE_DEVICES": str(sim_gpu),

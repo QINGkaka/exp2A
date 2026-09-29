@@ -1,5 +1,5 @@
 diff --git a/benchmarks/robotwin/eval_policy_wrapper.py b/benchmarks/robotwin/eval_policy_wrapper.py
-index 071a0ff..4bfa65b 100644
+index 071a0ff..1a9abc6 100644
 --- a/benchmarks/robotwin/eval_policy_wrapper.py
 +++ b/benchmarks/robotwin/eval_policy_wrapper.py
 @@ -16,6 +16,7 @@ import types
@@ -47,7 +47,25 @@ index 071a0ff..4bfa65b 100644
  def _initialize_eval_task_state(task_name: str, task_env: Any) -> None:
      """Recreate task fields that verified RoboTwin sets only in ``play_once``.
  
-@@ -605,13 +636,46 @@ def _install_eval(module) -> None:
+@@ -548,6 +579,8 @@ def _install_eval(module) -> None:
+ 
+     def evaluate(task_name, task_env, args, model, st_seed, test_num=100, video_size=None, instruction_type=None):
+         del st_seed, instruction_type
++        if os.environ.get("ROBOTWIN_DISABLE_EVAL_VIDEO") == "1":
++            args["eval_video_log"] = False
+         if task_name != manifest["task"] or args["task_config"] != manifest["mode"]:
+             raise ValueError("RoboTwin evaluator task/mode does not match sealed manifest")
+         if test_num != len(entries):
+@@ -569,6 +602,8 @@ def _install_eval(module) -> None:
+                     policy_module.set_benchmark_rng_domain(domain)
+                 with domain.activate():
+                     task_env.setup_demo(now_ep_num=episode, seed=seed, is_test=True, **args)
++                    if os.environ.get("ROBOTWIN_DISABLE_EVAL_VIDEO") == "1":
++                        task_env.eval_video_path = None
+                     _initialize_eval_task_state(task_name, task_env)
+                     task_env.set_instruction(instruction=entry["instructions"][selected_type])
+                     _canonicalize_torch_cuda(seed)
+@@ -605,13 +640,46 @@ def _install_eval(module) -> None:
  
                  reset_func(model)
                  success = False
