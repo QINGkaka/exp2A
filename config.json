@@ -1,0 +1,36 @@
+{
+  "tasks": [
+    "place_fan",
+    "place_a2b_right",
+    "place_mouse_pad",
+    "place_dual_shoes",
+    "put_bottles_dustbin"
+  ],
+  "mode": "demo_clean",
+  "instruction_type": "unseen",
+  "states_per_task": 10,
+  "rollouts_per_state": 128,
+  "paths": {
+    "openwam_repo": "/root/data/robot/OpenWAM",
+    "robotwin_repo": "/root/data/robot/work/RoboTwin-openwam-verified",
+    "robotwin_python": "/root/data/miniconda3/envs/robotwin-openwam/bin/python",
+    "manifest_root": "/root/data/robot/experiment2A/manifests"
+  },
+  "hardware": {
+    "model_gpu": 4,
+    "sim_gpu": 0,
+    "host": "127.0.0.1",
+    "port": 8860,
+    "startup_timeout_seconds": 1200
+  },
+  "models": {
+    "no_wm": "/root/data/robot/OpenWAM/assets/openwam_ckpt/experiment3/openwam-robotwin-clean40-action-only",
+    "wm": "/root/data/robot/OpenWAM/assets/openwam_ckpt/experiment3/openwam-robotwin-clean40-wm-full"
+  },
+  "analysis": {
+    "clusters": 6,
+    "pca_components": 12,
+    "resample_points": 32,
+    "random_seed": 0
+  }
+}
