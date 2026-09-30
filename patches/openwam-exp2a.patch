@@ -1,5 +1,5 @@
 diff --git a/benchmarks/robotwin/eval_policy_wrapper.py b/benchmarks/robotwin/eval_policy_wrapper.py
-index 071a0ff..1a9abc6 100644
+index 071a0ff..77dd211 100644
 --- a/benchmarks/robotwin/eval_policy_wrapper.py
 +++ b/benchmarks/robotwin/eval_policy_wrapper.py
 @@ -16,6 +16,7 @@ import types
@@ -10,30 +10,53 @@ index 071a0ff..1a9abc6 100644
  import yaml
  
  _REPO_ROOT = Path(__file__).resolve().parents[2]
-@@ -425,6 +426,36 @@ def _write_labtasker_result(payload: dict) -> None:
+@@ -425,6 +426,59 @@ def _write_labtasker_result(payload: dict) -> None:
          json.dump(payload, handle, indent=2)
  
  
 +def _trace_step(task_env: Any, observation: dict[str, Any], action: Any) -> dict[str, Any]:
-+    endpose = observation.get("endpose", {})
-+    contacts = []
++    del observation
++    left_endpose = np.asarray(task_env.get_arm_pose("left"), dtype=float)
++    right_endpose = np.asarray(task_env.get_arm_pose("right"), dtype=float)
++    contact_map: dict[tuple[str, str], dict[str, Any]] = {}
 +    try:
++        robot = task_env.robot
++        left_names = set(getattr(robot, "left_fix_gripper_name", []))
++        right_names = set(getattr(robot, "right_fix_gripper_name", []))
++        left_names.update(g[0].child_link.get_name() for g in getattr(robot, "left_gripper", []))
++        right_names.update(g[0].child_link.get_name() for g in getattr(robot, "right_gripper", []))
++        robot_links = {
++            link.get_name()
++            for entity in (getattr(robot, "left_entity", None), getattr(robot, "right_entity", None))
++            if entity is not None
++            for link in entity.get_links()
++        }
 +        for contact in task_env.scene.get_contacts():
-+            names = sorted((contact.bodies[0].entity.name, contact.bodies[1].entity.name))
-+            if not any(token in name.lower() for name in names for token in ("gripper", "finger", "hand")):
++            names = (contact.bodies[0].entity.name, contact.bodies[1].entity.name)
++            gripper_index = next((i for i, name in enumerate(names) if name in left_names or name in right_names), None)
++            if gripper_index is None:
++                continue
++            if names[1 - gripper_index] in robot_links:
 +                continue
 +            points = [list(map(float, point.position)) for point in list(contact.points)[:4]]
-+            contacts.append({"bodies": names, "points": points})
++            gripper_name = names[gripper_index]
++            arm = "left" if gripper_name in left_names else "right"
++            object_name = names[1 - gripper_index]
++            key = (arm, object_name)
++            record = contact_map.setdefault(key, {
++                "arm": arm, "gripper": gripper_name, "object": object_name, "points": [],
++            })
++            record["points"].extend(points[:max(0, 4 - len(record["points"]))])
 +    except Exception:
-+        contacts = []
++        contact_map = {}
 +    return {
 +        "step": int(task_env.take_action_cnt),
-+        "left_endpose": np.asarray(endpose.get("left_endpose", []), dtype=float).tolist(),
-+        "right_endpose": np.asarray(endpose.get("right_endpose", []), dtype=float).tolist(),
-+        "left_gripper": float(endpose.get("left_gripper", 0.0)),
-+        "right_gripper": float(endpose.get("right_gripper", 0.0)),
++        "left_endpose": left_endpose.tolist(),
++        "right_endpose": right_endpose.tolist(),
++        "left_gripper": float(task_env.robot.get_left_gripper_val()),
++        "right_gripper": float(task_env.robot.get_right_gripper_val()),
 +        "action": np.asarray(action, dtype=float).reshape(-1).tolist(),
-+        "contacts": contacts,
++        "contacts": list(contact_map.values()),
 +    }
 +
 +
@@ -47,7 +70,7 @@ index 071a0ff..1a9abc6 100644
  def _initialize_eval_task_state(task_name: str, task_env: Any) -> None:
      """Recreate task fields that verified RoboTwin sets only in ``play_once``.
  
-@@ -548,6 +579,8 @@ def _install_eval(module) -> None:
+@@ -548,6 +602,8 @@ def _install_eval(module) -> None:
  
      def evaluate(task_name, task_env, args, model, st_seed, test_num=100, video_size=None, instruction_type=None):
          del st_seed, instruction_type
@@ -56,7 +79,7 @@ index 071a0ff..1a9abc6 100644
          if task_name != manifest["task"] or args["task_config"] != manifest["mode"]:
              raise ValueError("RoboTwin evaluator task/mode does not match sealed manifest")
          if test_num != len(entries):
-@@ -569,6 +602,8 @@ def _install_eval(module) -> None:
+@@ -569,6 +625,8 @@ def _install_eval(module) -> None:
                      policy_module.set_benchmark_rng_domain(domain)
                  with domain.activate():
                      task_env.setup_demo(now_ep_num=episode, seed=seed, is_test=True, **args)
@@ -65,7 +88,7 @@ index 071a0ff..1a9abc6 100644
                      _initialize_eval_task_state(task_name, task_env)
                      task_env.set_instruction(instruction=entry["instructions"][selected_type])
                      _canonicalize_torch_cuda(seed)
-@@ -605,13 +640,46 @@ def _install_eval(module) -> None:
+@@ -605,13 +663,46 @@ def _install_eval(module) -> None:
  
                  reset_func(model)
                  success = False
@@ -94,7 +117,7 @@ index 071a0ff..1a9abc6 100644
 +                    _write_trajectory_trace(
 +                        Path(trace_path_value),
 +                        {
-+                            "schema_version": 1,
++                            "schema_version": 2,
 +                            "task": task_name,
 +                            "mode": args["task_config"],
 +                            "method": os.environ.get("ROBOTWIN_TRACE_METHOD"),

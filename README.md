@@ -10,6 +10,15 @@ standardization, PCA, and K-means. Method and success labels are not included in
 the clustering features; they are joined only when producing mode probability
 and mode success-rate tables.
 
+The clustering features deliberately exclude episode length because successful
+episodes terminate early. They include time-normalized relative paths, relative
+grasp position and orientation, gripper-close timing, pre-contact/close approach
+direction, gripper-object contact position, and arm assignment. The requested
+cluster count is an upper bound; K is selected per task by silhouette score.
+Diagnostics report restart stability, correlation with initial-state identity,
+and contact coverage. No-WM and WM use the same policy sampling seed for each
+matched `(task, state, rollout)` tuple.
+
 ## Installation
 
 This repository expects the existing workspace layout under

@@ -51,8 +51,8 @@ def manifest_hash(path: Path) -> str:
     return load(path)["manifest_hash"]
 
 
-def policy_sample_seed(method: str, task: str, state: int, rollout: int) -> int:
-    key = f"experiment2A:{method}:{task}:{state}:{rollout}".encode("utf-8")
+def policy_sample_seed(task: str, state: int, rollout: int) -> int:
+    key = f"experiment2A:{task}:{state}:{rollout}".encode("utf-8")
     return int.from_bytes(hashlib.sha256(key).digest()[:4], "big") & 0x7FFFFFFF
 
 
@@ -74,7 +74,7 @@ def main() -> None:
     methods = [x.strip() for x in args.methods.split(",") if x.strip()]
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
-    (output / "config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+    (output / "logs").mkdir(parents=True, exist_ok=True)
 
     openwam = Path(config["paths"]["openwam_repo"])
     robotwin = Path(config["paths"]["robotwin_repo"])
@@ -86,6 +86,10 @@ def main() -> None:
     model_gpu = int(os.environ.get("EXP2A_MODEL_GPU", hw["model_gpu"]))
     sim_gpu = int(os.environ.get("EXP2A_SIM_GPU", hw["sim_gpu"]))
     port = int(os.environ.get("EXP2A_PORT", hw["port"]))
+    config.update({"tasks": tasks, "states_per_task": states, "rollouts_per_state": rollouts,
+                   "collection_methods": methods})
+    config["hardware"].update({"model_gpu": model_gpu, "sim_gpu": sim_gpu, "port": port})
+    (output / "config.json").write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     base_env = os.environ.copy()
     base_env.update({
         "ROBOTWIN_PATH": str(robotwin),
@@ -135,7 +139,7 @@ def main() -> None:
                             continue
                         runtime = output / "runtime" / task / method / f"s{state:02d}_r{rollout:03d}"
                         runtime.mkdir(parents=True, exist_ok=True)
-                        sample_seed = policy_sample_seed(method, task, state, rollout)
+                        sample_seed = policy_sample_seed(task, state, rollout)
                         env = base_env | {
                             "CUDA_VISIBLE_DEVICES": str(sim_gpu),
                             "ROBOTWIN_RUNTIME_ROOT": str(runtime),
