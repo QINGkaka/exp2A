@@ -49,6 +49,13 @@ editing JSON when those cards are occupied:
 EXP2A_MODEL_GPU=6 EXP2A_SIM_GPU=1 EXP2A_PORT=8860 ./run_smoke.sh
 ```
 
+When the official-checkpoint calibration occupies physical GPU 6 and port
+8860, run the isolated smoke allocation (physical GPU 7 + simulator GPU 0):
+
+```bash
+./run_smoke_parallel.sh
+```
+
 Run the full protocol only after inspecting the smoke traces and clusters:
 
 ```bash
